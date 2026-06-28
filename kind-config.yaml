@@ -1,0 +1,20 @@
+# Config do cluster kind (lida pelo `kind create cluster`, não pelo kubectl).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        # Label exigido pelo Ingress-Nginx do kind; sem ele o controller fica Pending.
+        node-labels: "ingress-ready=true"
+  # Expõe 80/443 do nó na sua máquina, permitindo acessar o Ingress em http://localhost.
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP

@@ -199,6 +199,14 @@ kubectl get all -n todolist-grupo-05
 
 > Quer entender cada peça? Siga os passos abaixo, na ordem — cada um depende do
 > anterior. (Já rodou o atalho acima? Então é só ler para entender o que foi criado.)
+>
+> 💡 **Ponto de partida com `--dry-run=client`:** em cada passo, o comando
+> `kubectl create ... --dry-run=client -o yaml` **não cria nada no cluster** —
+> apenas imprime um YAML de exemplo. Redirecione para um arquivo
+> (`> lab1/arquivo.yaml`), ajuste o que faltar e só então crie o recurso com
+> `kubectl apply -f`. Assim você ganha um esqueleto sem ferir a regra do lab:
+> a criação continua **declarativa**. (O PVC é a exceção — não há
+> `kubectl create pvc`, então ele é escrito à mão.)
 
 #### 1. Namespace
 
@@ -215,6 +223,11 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: gera o esqueleto do manifest
+kubectl create namespace todolist-grupo-05 \
+  --dry-run=client -o yaml > lab1/namespace.yaml
+
+# Depois de revisar o arquivo, aplique:
 kubectl apply -f lab1/namespace.yaml
 ```
 
@@ -237,6 +250,14 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: gera o esqueleto já com as chaves do lab
+kubectl create configmap todolist-config \
+  --from-literal=APP_NAME="TodoList - Grupo 05" \
+  --from-literal=APP_PORT=5000 \
+  --from-literal=APP_COLOR=purple \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/configmap.yaml
+
+# Depois de revisar o arquivo, aplique:
 kubectl apply -f lab1/configmap.yaml
 ```
 
@@ -264,6 +285,15 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: o create já codifica os valores em base64 no arquivo
+kubectl create secret generic todolist-secret \
+  --from-literal=SESSION_KEY=troque-este-valor \
+  --from-literal=ADMIN_USER=admin \
+  --from-literal=ADMIN_PASSWORD=troque-esta-senha \
+  --from-literal=CLEANUP_TOKEN=troque-este-token \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/secret.yaml
+
+# Depois de revisar o arquivo, aplique:
 kubectl apply -f lab1/secret.yaml
 ```
 
@@ -290,6 +320,9 @@ flowchart LR
     Apply --> API --> etcd --> PVC -->|bound| PV
     PVC -->|volumeMount /data| Pods
 ```
+
+> Não há `kubectl create pvc` — escreva `lab1/pvc.yaml` à mão com `kind: PersistentVolumeClaim`,
+> `accessModes: [ReadWriteOnce]` e `resources.requests.storage: 500Mi`.
 
 ```bash
 kubectl apply -f lab1/pvc.yaml
@@ -322,6 +355,14 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: gera só o esqueleto (imagem + réplicas)
+kubectl create deployment todolist \
+  --image=andreffcastro/k8s-todolist:1.0.0 --replicas=2 \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/deployment.yaml
+
+# Edite o arquivo para adicionar: envFrom (ConfigMap + Secret),
+# containerPort 5000, volumeMounts em /data e o volume apontando para o PVC.
+# Depois aplique:
 kubectl apply -f lab1/deployment.yaml
 ```
 
@@ -346,6 +387,11 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: --tcp=80:5000 já define port 80 → targetPort 5000
+kubectl create service clusterip todolist --tcp=80:5000 \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/service.yaml
+
+# Confira o selector (deve ser app: todolist) e aplique:
 kubectl apply -f lab1/service.yaml
 ```
 
@@ -372,6 +418,12 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: --rule="host/path=service:port"
+kubectl create ingress todolist-ingress \
+  --rule="todolist-grupo-05.local/*=todolist:80" \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/ingress.yaml
+
+# Depois de revisar o arquivo, aplique:
 kubectl apply -f lab1/ingress.yaml
 ```
 
@@ -400,6 +452,13 @@ flowchart LR
 ```
 
 ```bash
+# Ponto de partida: gera o esqueleto com imagem + agendamento
+kubectl create cronjob todolist-cleanup \
+  --image=curlimages/curl:8 --schedule="*/5 * * * *" \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab1/cronjob.yaml
+
+# Edite o arquivo para adicionar o command do curl (POST /cleanup) e o
+# CLEANUP_TOKEN via secretKeyRef. Depois aplique:
 kubectl apply -f lab1/cronjob.yaml
 ```
 

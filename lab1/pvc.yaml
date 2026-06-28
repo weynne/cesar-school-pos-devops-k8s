@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: todolist-pvc
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: storage
+  annotations:
+    description: "Armazenamento persistente do TodoList (banco SQLite em /data)"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi

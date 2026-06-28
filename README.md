@@ -2,6 +2,10 @@
 
 Repositório com os labs práticos do módulo de Orquestração de Containers com Kubernetes.
 
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+![kind](https://img.shields.io/badge/kind-000000?style=flat-square&logo=kubernetes&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+
 ---
 
 ## Sumário
@@ -10,7 +14,6 @@ Repositório com os labs práticos do módulo de Orquestração de Containers co
 - [Pré-requisitos](#pré-requisitos)
 - [Preparando o cluster](#preparando-o-cluster)
 - [Lab 1: Workloads + Acesso + Persistência](#lab-1-workloads--acesso--persistência)
-  - [Subir tudo de uma vez](#subir-tudo-de-uma-vez)
   - [Como subir o ambiente](#como-subir-o-ambiente)
   - [Verificação](#verificação)
   - [Troubleshooting](#troubleshooting)
@@ -72,6 +75,7 @@ flowchart TD
 | 🌐 **CNI Plugin** | Atribui IP ao Pod e configura a rede |
 | ✅ **Pod Running** | Pod pronto para receber tráfego |
 
+> [!NOTE]
 > **Reconciliation loop:** esse ciclo nunca para.
 > Se um Pod cair, o controller percebe a diferença entre o estado atual e o desejado.
 > Ele cria outro Pod para restaurá-lo, sem intervenção manual.
@@ -185,43 +189,34 @@ lab1/
 └── cronjob.yaml
 ```
 
-### Subir tudo de uma vez
-
-> Pressupõe o cluster e o Ingress já no ar (veja [Preparando o cluster](#preparando-o-cluster)).
-
-```bash
-kubectl apply -f lab1/namespace.yaml
-kubectl apply -f lab1/
-
-kubectl get all -n todolist-grupo-05
-```
-
 ### Como subir o ambiente
 
-> Quer entender cada objeto? Siga os passos abaixo na ordem, porque cada um
-> depende do anterior. (Já rodou tudo de uma vez? Então é só ler para entender o
-> que foi criado.)
->
-> 💡 **Ponto de partida com `--dry-run=client`:** em cada passo, o comando
+Siga os passos abaixo na ordem, porque cada um depende do anterior. Cada bloco
+é colapsável: clique para expandir o objeto que quiser ver.
+
+> [!TIP]
+> **Ponto de partida com `--dry-run=client`:** em cada passo, o comando
 > `kubectl create ... --dry-run=client -o yaml` **não cria nada no cluster**.
 > Ele apenas imprime um YAML de exemplo. A ideia é redirecionar para um arquivo
 > (`> lab1/arquivo.yaml`), ajustar o que faltar e só então criar o recurso com
 > `kubectl apply -f`. Assim você ganha um esqueleto sem ferir a regra do lab,
 > já que a criação continua **declarativa**.
 >
-> O que o dry-run gera é o **mínimo que o Kubernetes exige**. Tudo que você
-> acrescenta por cima é opcional (labels, annotations) ou exigência do *lab*,
-> não do Kubernetes. O quanto você edita depois varia bastante de um objeto
-> para outro:
+> O que o `dry-run` gera é o **mínimo que o Kubernetes exige**. O quanto você
+> precisará editar o arquivo gerado varia de acordo com o tipo de objeto:
 >
-> - **Quase pronto** (só revisar): Namespace, ConfigMap, Secret, Service, Ingress.
-> - **Só o esqueleto** (o essencial você adiciona depois): **Deployment**
->   (`envFrom`, volume em `/data`, porta `5000`) e **CronJob** (command do `curl`,
->   `secretKeyRef`).
-> - **Sem `create`** (escrito 100% à mão): **PVC**, porque não existe
->   `kubectl create pvc`.
+> - 🟢 **Prontos para uso (requerem apenas revisão):** Namespace, ConfigMap,
+>   Secret, Service e Ingress. O comando gera a estrutura praticamente finalizada.
+> - 🟡 **Estrutura básica (requerem customização):** Deployment e CronJob. O
+>   comando gera apenas o esqueleto inicial. Você precisará adicionar os
+>   complementos essenciais no YAML (ex: `envFrom`, volumes em `/data` e porta
+>   `5000` no Deployment; comando `curl` e `secretKeyRef` no CronJob).
+> - 🔴 **Criação manual (sem comando `create`):** PVC (PersistentVolumeClaim).
+>   Como o `kubectl` não possui um gerador nativo para PVCs, o manifesto precisa
+>   ser escrito integralmente do zero.
 
-#### 1. Namespace
+<details>
+<summary><b>1. Namespace</b> — isola todos os recursos do lab</summary>
 
 Isola todos os recursos do lab. Todo manifest abaixo deve declarar `namespace: todolist-grupo-05`.
 
@@ -244,9 +239,10 @@ kubectl create namespace todolist-grupo-05 \
 kubectl apply -f lab1/namespace.yaml
 ```
 
----
+</details>
 
-#### 2. ConfigMap
+<details>
+<summary><b>2. ConfigMap</b> — variáveis não sensíveis (APP_NAME, APP_PORT, APP_COLOR)</summary>
 
 Armazena variáveis não-sensíveis (`APP_NAME`, `APP_PORT`, `APP_COLOR`)
 injetadas nos Pods via `envFrom`.
@@ -274,9 +270,10 @@ kubectl create configmap todolist-config \
 kubectl apply -f lab1/configmap.yaml
 ```
 
----
+</details>
 
-#### 3. Secret
+<details>
+<summary><b>3. Secret</b> — dados sensíveis (sessão, login, token)</summary>
 
 Guarda `SESSION_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD` e `CLEANUP_TOKEN`.
 Funciona como o ConfigMap, mas é o objeto indicado para dados sensíveis:
@@ -310,14 +307,16 @@ kubectl create secret generic todolist-secret \
 kubectl apply -f lab1/secret.yaml
 ```
 
----
+</details>
 
-#### 4. PersistentVolumeClaim
+<details>
+<summary><b>4. PersistentVolumeClaim</b> — volume de 500Mi para o banco</summary>
 
 Solicita um volume de `500Mi` (`ReadWriteOnce`) ao cluster.
 O Kubernetes provisiona o PersistentVolume e o vincula ao PVC.
 O Deployment monta o volume em `/data`, onde fica o banco `todos.db`.
 
+> [!NOTE]
 > No kind, o PVC só fica `Bound` quando um Pod o monta (passo 5). Até lá ele
 > aparece como `Pending`, o que é normal. Veja [Troubleshooting](#troubleshooting).
 
@@ -334,6 +333,7 @@ flowchart LR
     PVC -->|volumeMount /data| Pods
 ```
 
+> [!IMPORTANT]
 > Não há `kubectl create pvc`, então escreva `lab1/pvc.yaml` à mão com
 > `kind: PersistentVolumeClaim`, `accessModes: [ReadWriteOnce]` e
 > `resources.requests.storage: 500Mi`.
@@ -342,9 +342,10 @@ flowchart LR
 kubectl apply -f lab1/pvc.yaml
 ```
 
----
+</details>
 
-#### 5. Deployment
+<details>
+<summary><b>5. Deployment</b> — 2 réplicas do servidor TodoList</summary>
 
 Garante que **2 réplicas** da imagem
 `andreffcastro/k8s-todolist:1.0.0` estejam sempre rodando.
@@ -380,9 +381,10 @@ kubectl create deployment todolist \
 kubectl apply -f lab1/deployment.yaml
 ```
 
----
+</details>
 
-#### 6. Service
+<details>
+<summary><b>6. Service</b> — expõe os Pods na porta 80 → 5000</summary>
 
 Expõe os Pods via `ClusterIP` estável na porta `80 → 5000`.
 O `selector: app: todolist` balanceia entre as réplicas.
@@ -409,9 +411,10 @@ kubectl create service clusterip todolist --tcp=80:5000 \
 kubectl apply -f lab1/service.yaml
 ```
 
----
+</details>
 
-#### 7. Ingress
+<details>
+<summary><b>7. Ingress</b> — acesso externo via todolist-grupo-05.local</summary>
 
 Recebe requisições externas em `todolist-grupo-05.local` e roteia para o Service.
 Requer o Ingress-NGINX Controller instalado.
@@ -441,9 +444,10 @@ kubectl create ingress todolist-ingress \
 kubectl apply -f lab1/ingress.yaml
 ```
 
----
+</details>
 
-#### 8. CronJob
+<details>
+<summary><b>8. CronJob</b> — limpeza automática a cada 5 minutos</summary>
 
 A cada 5 minutos (`*/5 * * * *`), um Job com a imagem `curlimages/curl:8`
 faz `POST /cleanup` para limpar itens concluídos do banco.
@@ -476,7 +480,7 @@ kubectl create cronjob todolist-cleanup \
 kubectl apply -f lab1/cronjob.yaml
 ```
 
----
+</details>
 
 ### Verificação
 
@@ -500,29 +504,38 @@ kubectl port-forward svc/todolist 5000:5000 -n todolist-grupo-05
 
 ### Troubleshooting
 
-Coisas que costumam aparecer ao rodar este lab no `kind`:
+Problemas comuns e soluções ao executar o ambiente localmente com o `kind`:
 
-- **`port is already allocated` ao criar o cluster?** Alguma coisa já usa a
-  porta 80 ou 443 no host (IIS no Windows, outro servidor web, ou outro cluster
-  kind). Libere a porta, ou troque o `hostPort` no
-  [`kind-config.yaml`](kind-config.yaml) para portas altas (ex. `8080` e `8443`)
-  e recrie o cluster. Nesse caso o acesso passa a ser `http://localhost:8080`.
+- 🔴 **Erro de porta alocada (`port is already allocated`):**
+  - **Causa:** Outro serviço no seu host (como IIS no Windows, Apache, ou outro
+    cluster kind) já está utilizando a porta 80 ou 443.
+  - **Solução:** Libere as portas parando o serviço conflitante, ou altere o
+    parâmetro `hostPort` no arquivo [`kind-config.yaml`](kind-config.yaml) para
+    portas altas (ex: `8080` e `8443`). Lembre-se de recriar o cluster e acessar
+    a aplicação via `http://localhost:8080`.
 
-- **PVC fica `Pending`?** É esperado. A StorageClass padrão do `kind`
-  (`standard`) usa `WaitForFirstConsumer`: o volume só é provisionado quando
-  o primeiro Pod monta o PVC. Assim que o Deployment sobe, ele passa para
-  `Bound`. Você não precisa instalar nenhum provisioner, porque o `kind` já
-  vem com o `local-path-provisioner` embutido.
+- 🟡 **Volume preso no status `Pending` (PVC):**
+  - **Causa:** Comportamento esperado. A `StorageClass` padrão do kind utiliza o
+    modo `WaitForFirstConsumer`.
+  - **Solução:** Nenhuma ação é necessária. O volume só será provisionado
+    fisicamente quando o primeiro Pod tentar montá-lo. Assim que o seu Deployment
+    subir, o status do PVC mudará automaticamente para `Bound`.
 
-- **Pod em `ImagePullBackOff`?** A imagem do lab (`andreffcastro/k8s-todolist:1.0.0`)
-  é pública no Docker Hub, então se esse erro aparecer com ela, verifique sua
-  conexão. Para **imagens locais** (builds próprios), o `kind` não enxerga o
-  registry local, então você precisa carregar a imagem manualmente no cluster:
+- 🔴 **Falha ao baixar imagem (`ImagePullBackOff`):**
+  - **Causa 1 (Imagem Pública):** Falha de conexão com a internet ou
+    instabilidade no Docker Hub ao tentar baixar `andreffcastro/k8s-todolist:1.0.0`.
+  - **Causa 2 (Imagem Local):** O cluster kind funciona isolado do seu sistema e
+    não enxerga o *registry* local do Docker por padrão.
+  - **Solução para imagens locais:** Você precisa carregar a imagem construída
+    manualmente para dentro do node do kind antes de aplicá-la:
 
-  ```bash
-  docker build -t minha-imagem:tag .
-  kind load docker-image minha-imagem:tag --name k8s-labs
-  ```
+    ```bash
+    # Constrói a imagem localmente
+    docker build -t minha-imagem:tag .
+
+    # Injeta a imagem diretamente no cluster kind
+    kind load docker-image minha-imagem:tag --name k8s-labs
+    ```
 
 ### Indo além (opcional)
 
@@ -565,6 +578,7 @@ Vamos adicionar a entrada abaixo ao `/etc/hosts`:
 
 A aplicação fica acessível em: [http://todolist-grupo-05.local](http://todolist-grupo-05.local)
 
+> [!WARNING]
 > **No WSL:** se você abre o site no navegador do **Windows**, quem vale é o
 > hosts do Windows (`C:\Windows\System32\drivers\etc\hosts`), e não o `/etc/hosts`
 > do WSL. O hosts do Windows é um arquivo comum e persiste normalmente. Já o

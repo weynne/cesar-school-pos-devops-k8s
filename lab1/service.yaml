@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todolist
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: network
+  annotations:
+    description: "Expõe o TodoList internamente no cluster (ClusterIP)"
+spec:
+  type: ClusterIP
+  selector:
+    app: todolist
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5000
+    protocol: TCP

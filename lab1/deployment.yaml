@@ -31,17 +31,15 @@ spec:
         volumeMounts:
           - name: data
             mountPath: /data
-        # --- Fora do escopo do Lab 1, mas boas práticas que não devem ser
-        # ignoradas em ambientes reais. Descomente e ajuste conforme o app. ---
-        #
-        # resources: limita CPU/memória para um Pod não consumir o nó inteiro.
-        # resources:
-        #   requests:
-        #     cpu: 50m
-        #     memory: 64Mi
-        #   limits:
-        #     cpu: 250m
-        #     memory: 128Mi
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+        # --- Fora do escopo do Lab 1, mas boa prática que não deve ser
+        # ignorada em ambientes reais. Descomente e ajuste conforme o app. ---
         #
         # probes: o Kubernetes usa para saber se o container está vivo e pronto.
         # (idealmente aponte para um endpoint de health, se a app tiver um)

@@ -18,3 +18,6 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
+# Dois workers: separam a carga da aplicação do control-plane (mais próximo de produção).
+- role: worker
+- role: worker

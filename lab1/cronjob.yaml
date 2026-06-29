@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: todolist-cleanup
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: cleanup
+  annotations:
+    description: "Limpeza periódica dos itens concluídos do TodoList"
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: todolist-cleanup
+            image: curlimages/curl:8
+            command:
+              - /bin/sh
+              - -c
+              - 'curl -sf -X POST -H "X-Cleanup-Token: $CLEANUP_TOKEN" http://todolist/cleanup'
+            env:
+              - name: CLEANUP_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: todolist-secret
+                    key: CLEANUP_TOKEN

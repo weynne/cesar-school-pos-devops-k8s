@@ -540,8 +540,8 @@ kubectl describe pod <POD_NAME> -n todolist-grupo-05
 # logs dos pods (por label)
 kubectl logs -l app=todolist -n todolist-grupo-05
 
-# caso precise inspecionar o serviço localmente:
-kubectl port-forward svc/todolist 5000:5000 -n todolist-grupo-05
+# caso precise inspecionar o serviço localmente (5000 local -> 80 do Service):
+kubectl port-forward svc/todolist 5000:80 -n todolist-grupo-05
 ```
 
 ### Troubleshooting
@@ -604,7 +604,7 @@ Tópicos fora do escopo deste lab, mas úteis quando for para um ambiente real:
   emite certificado para `localhost`.)
 
 - **Alternativas ao `/etc/hosts`:**
-  - `kubectl port-forward svc/todolist 5000:5000 -n todolist-grupo-05`
+  - `kubectl port-forward svc/todolist 5000:80 -n todolist-grupo-05`
     (acessa em `http://localhost:5000`, sem Ingress)
   - [`nip.io`](https://nip.io): use um host como
     `todolist-grupo-05.127.0.0.1.nip.io`, que resolve para `127.0.0.1`

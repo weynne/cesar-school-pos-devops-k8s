@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: todolist-ingress
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: network
+  annotations:
+    description: "Acesso externo ao TodoList via todolist-grupo-05.local"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: todolist-grupo-05.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: todolist
+            port:
+              number: 80

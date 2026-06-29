@@ -94,14 +94,14 @@ flowchart TD
 
 ## Pré-requisitos
 
-Ferramentas que precisam estar instaladas na sua máquina:
+Ferramentas que precisam estar instaladas na máquina:
 
 - [kind](https://kind.sigs.k8s.io/): sobe um cluster Kubernetes local dentro
   do Docker. Confira a instalação com `kind --version`.
 - [kubectl](https://kubernetes.io/docs/tasks/tools/): o cliente de linha de
   comando do Kubernetes. Confira com `kubectl version --client`.
 - [Docker](https://docs.docker.com/get-docker/): o runtime que o kind usa (e
-  que também serve para construir imagens locais quando você precisar).
+  que também serve para construir imagens locais quando necessário).
   Confira com `docker --version`.
 
 O cluster e o Ingress Controller são criados na seção
@@ -109,7 +109,7 @@ O cluster e o Ingress Controller são criados na seção
 
 ## Preparando o cluster
 
-Você sobe o ambiente uma única vez e ele serve para qualquer lab deste repositório.
+Subimos o ambiente uma única vez; ele serve para qualquer lab deste repositório.
 
 A configuração do cluster fica em [`kind-config.yaml`](kind-config.yaml), que
 expõe as portas 80/443 no host e marca o node com `ingress-ready=true`
@@ -199,16 +199,16 @@ Siga os passos abaixo na ordem, porque cada um depende do anterior. Cada bloco
 > `kubectl create ... --dry-run=client -o yaml` **não cria nada no cluster**.
 > Ele apenas imprime um YAML de exemplo. A ideia é redirecionar para um arquivo
 > (`> lab1/arquivo.yaml`), ajustar o que faltar e só então criar o recurso com
-> `kubectl apply -f`. Assim você ganha um esqueleto sem ferir a regra do lab,
+> `kubectl apply -f`. Assim ganhamos um esqueleto sem ferir a regra do lab,
 > já que a criação continua **declarativa**.
 >
-> O que o `dry-run` gera é o **mínimo que o Kubernetes exige**. O quanto você
-> precisará editar o arquivo gerado varia de acordo com o tipo de objeto:
+> O que o `dry-run` gera é o **mínimo que o Kubernetes exige**. O quanto
+> precisaremos editar o arquivo gerado varia de acordo com o tipo de objeto:
 >
 > - 🟢 **Prontos para uso (requerem apenas revisão):** Namespace, ConfigMap,
 >   Secret, Service e Ingress. O comando gera a estrutura praticamente finalizada.
 > - 🟡 **Estrutura básica (requerem customização):** Deployment e CronJob. O
->   comando gera apenas o esqueleto inicial. Você precisará adicionar os
+>   comando gera apenas o esqueleto inicial. Precisaremos adicionar os
 >   complementos essenciais no YAML (ex: `envFrom`, volumes em `/data` e porta
 >   `5000` no Deployment; comando `curl` e `secretKeyRef` no CronJob).
 > - 🔴 **Criação manual (sem comando `create`):** PVC (PersistentVolumeClaim).
@@ -244,7 +244,7 @@ kubectl apply -f lab1/namespace.yaml
 <details>
 <summary><b>2. ConfigMap</b> — variáveis não sensíveis (APP_NAME, APP_PORT, APP_COLOR)</summary>
 
-Armazena variáveis não-sensíveis (`APP_NAME`, `APP_PORT`, `APP_COLOR`)
+Armazena variáveis não sensíveis (`APP_NAME`, `APP_PORT`, `APP_COLOR`)
 injetadas nos Pods via `envFrom`.
 
 ```mermaid
@@ -316,8 +316,7 @@ Solicita um volume de `500Mi` (`ReadWriteOnce`) ao cluster.
 O Kubernetes provisiona o PersistentVolume e o vincula ao PVC.
 O Deployment monta o volume em `/data`, onde fica o banco `todos.db`.
 
-> [!NOTE]
-> No kind, o PVC só fica `Bound` quando um Pod o monta (passo 5). Até lá ele
+> 📝 **Nota:** no kind, o PVC só fica `Bound` quando um Pod o monta (passo 5). Até lá ele
 > aparece como `Pending`, o que é normal. Veja [Troubleshooting](#troubleshooting).
 
 ```mermaid
@@ -333,8 +332,7 @@ flowchart LR
     PVC -->|volumeMount /data| Pods
 ```
 
-> [!IMPORTANT]
-> Não há `kubectl create pvc`, então escreva `lab1/pvc.yaml` à mão com
+> ❗ **Importante:** não há `kubectl create pvc`, então escreva `lab1/pvc.yaml` à mão com
 > `kind: PersistentVolumeClaim`, `accessModes: [ReadWriteOnce]` e
 > `resources.requests.storage: 500Mi`.
 
@@ -353,6 +351,13 @@ Cada réplica consome o ConfigMap e o Secret via `envFrom` e monta o PVC em `/da
 
 O Deployment Controller cria um ReplicaSet.
 O ReplicaSet cria e mantém os Pods até ficarem prontos:
+
+> 📝 **Nota — imutabilidade de variáveis injetadas:** valores injetados via `envFrom`
+> (ConfigMap e Secret) são lidos exclusivamente no momento da inicialização do
+> container. Alterações feitas no ConfigMap ou no Secret não são refletidas
+> automaticamente nos Pods em execução. Para aplicar novas configurações, é
+> necessário forçar a recriação dos Pods com:
+> `kubectl rollout restart deployment/todolist -n todolist-grupo-05`.
 
 ```mermaid
 flowchart LR
@@ -389,6 +394,17 @@ kubectl apply -f lab1/deployment.yaml
 Expõe os Pods via `ClusterIP` estável na porta `80 → 5000`.
 O `selector: app: todolist` balanceia entre as réplicas.
 
+> 📝 **Nota — Service vs Ingress (interno vs externo):** o Service fornece um endereço
+> interno e estável para um conjunto de Pods (os IPs dos Pods mudam dinamicamente;
+> o do Service é fixo). Como está definido como `ClusterIP`, ele só é acessível
+> de dentro do cluster. Quem expõe essa aplicação para o navegador é o Ingress
+> (passo 7).
+>
+> **Mapeamento de portas:** `port: 80` é a porta exposta pelo Service;
+> `targetPort: 5000` é a porta onde a aplicação escuta dentro do Pod. O Service
+> recebe o tráfego na porta 80 e o encaminha para a porta 5000 dos Pods
+> selecionados.
+
 ```mermaid
 flowchart LR
     Apply["💻 kubectl apply<br/>-f service.yaml"]
@@ -418,6 +434,14 @@ kubectl apply -f lab1/service.yaml
 
 Recebe requisições externas em `todolist-grupo-05.local` e roteia para o Service.
 Requer o Ingress-NGINX Controller instalado.
+
+> ❗ **Importante — `ingressClassName`:** sem o campo `ingressClassName: nginx`,
+> o Ingress Controller ignora o manifesto e nenhum roteamento é aplicado (isso
+> ocorre porque, no kind, não existe uma classe marcada como default). Além
+> disso, o roteamento é baseado em **host**: a regra definida só responde a
+> requisições destinadas a `todolist-grupo-05.local`. Acessar por outros
+> endereços (como `localhost`) resultará em um erro `404 Not Found` do NGINX,
+> pois não haverá uma regra que corresponda ao host requisitado.
 
 ```mermaid
 flowchart LR
@@ -452,6 +476,24 @@ kubectl apply -f lab1/ingress.yaml
 A cada 5 minutos (`*/5 * * * *`), um Job com a imagem `curlimages/curl:8`
 faz `POST /cleanup` para limpar itens concluídos do banco.
 O token vem diretamente do Secret.
+
+> ⚠️ **Atenção — dois pontos na configuração do CronJob:**
+>
+> - **Expansão de variáveis de ambiente:** o valor do `$CLEANUP_TOKEN` só é
+>   expandido se o comando for executado dentro de um shell. Configure o comando
+>   como `command: ["/bin/sh", "-c", "curl -H 'X-Cleanup-Token: $CLEANUP_TOKEN' ..."]`.
+>   Se omitir o `/bin/sh -c`, o header será enviado como o texto literal
+>   `$CLEANUP_TOKEN`, causando falhas de autenticação (`401` ou `403`).
+> - **Política de reinicialização (`restartPolicy`):** Pods criados por
+>   Jobs/CronJobs exigem `restartPolicy: OnFailure` ou `Never`. O valor padrão
+>   (`Always`) é incompatível com o ciclo de vida de uma tarefa agendada e
+>   resultará em erro ao aplicar o manifesto.
+>
+> 📝 **Nota — escopo das labels:** as labels `app`/`component` ficam apenas no
+> objeto CronJob, não no Pod que ele cria. Se o Pod do `curl` tivesse
+> `app: todolist`, o Service passaria a roteá-lo como se fosse um servidor web
+> (que ele não é), enviando tráfego para um Pod que apenas executa uma tarefa e
+> encerra.
 
 ```mermaid
 flowchart LR
@@ -507,26 +549,26 @@ kubectl port-forward svc/todolist 5000:5000 -n todolist-grupo-05
 Problemas comuns e soluções ao executar o ambiente localmente com o `kind`:
 
 - 🔴 **Erro de porta alocada (`port is already allocated`):**
-  - **Causa:** Outro serviço no seu host (como IIS no Windows, Apache, ou outro
+  - **Causa:** outro serviço no host (como IIS no Windows, Apache, ou outro
     cluster kind) já está utilizando a porta 80 ou 443.
-  - **Solução:** Libere as portas parando o serviço conflitante, ou altere o
+  - **Solução:** libere as portas parando o serviço conflitante, ou altere o
     parâmetro `hostPort` no arquivo [`kind-config.yaml`](kind-config.yaml) para
     portas altas (ex: `8080` e `8443`). Lembre-se de recriar o cluster e acessar
     a aplicação via `http://localhost:8080`.
 
 - 🟡 **Volume preso no status `Pending` (PVC):**
-  - **Causa:** Comportamento esperado. A `StorageClass` padrão do kind utiliza o
+  - **Causa:** comportamento esperado. A `StorageClass` padrão do kind utiliza o
     modo `WaitForFirstConsumer`.
-  - **Solução:** Nenhuma ação é necessária. O volume só será provisionado
-    fisicamente quando o primeiro Pod tentar montá-lo. Assim que o seu Deployment
+  - **Solução:** nenhuma ação é necessária. O volume só será provisionado
+    fisicamente quando o primeiro Pod tentar montá-lo. Assim que o Deployment
     subir, o status do PVC mudará automaticamente para `Bound`.
 
 - 🔴 **Falha ao baixar imagem (`ImagePullBackOff`):**
-  - **Causa 1 (Imagem Pública):** Falha de conexão com a internet ou
+  - **Causa 1 (Imagem Pública):** falha de conexão com a internet ou
     instabilidade no Docker Hub ao tentar baixar `andreffcastro/k8s-todolist:1.0.0`.
-  - **Causa 2 (Imagem Local):** O cluster kind funciona isolado do seu sistema e
+  - **Causa 2 (Imagem Local):** o cluster kind funciona isolado do sistema e
     não enxerga o *registry* local do Docker por padrão.
-  - **Solução para imagens locais:** Você precisa carregar a imagem construída
+  - **Solução para imagens locais:** é necessário carregar a imagem construída
     manualmente para dentro do node do kind antes de aplicá-la:
 
     ```bash
@@ -542,8 +584,8 @@ Problemas comuns e soluções ao executar o ambiente localmente com o `kind`:
 Tópicos fora do escopo deste lab, mas úteis quando for para um ambiente real:
 
 - **Secrets seguros:** o Secret deste lab está versionado só para fins
-  didáticos. Em projetos reais, **não comite valores sensíveis** (base64 é
-  codificação, não criptografia). Crie o Secret fora do Git:
+  didáticos. Em projetos reais, **não versione valores sensíveis no repositório**
+  (base64 é codificação, não criptografia). Crie o Secret fora do Git:
 
   ```bash
   kubectl create secret generic todolist-secret \
@@ -579,11 +621,11 @@ Vamos adicionar a entrada abaixo ao `/etc/hosts`:
 A aplicação fica acessível em: [http://todolist-grupo-05.local](http://todolist-grupo-05.local)
 
 > [!WARNING]
-> **No WSL:** se você abre o site no navegador do **Windows**, quem vale é o
-> hosts do Windows (`C:\Windows\System32\drivers\etc\hosts`), e não o `/etc/hosts`
+> **No WSL:** ao abrir o site no navegador do **Windows**, o sistema prioriza o
+> arquivo hosts do Windows (`C:\Windows\System32\drivers\etc\hosts`), e não o `/etc/hosts`
 > do WSL. O hosts do Windows é um arquivo comum e persiste normalmente. Já o
 > `/etc/hosts` *de dentro do WSL* é regenerado a cada boot (apagando edições
-> manuais), a menos que você desative isso com `generateHosts = false` no
+> manuais), a menos que isso seja desativado com `generateHosts = false` no
 > `/etc/wsl.conf`. Para evitar essa confusão, use o `nip.io`
 > (`http://todolist-grupo-05.127.0.0.1.nip.io`), que resolve sozinho sem editar
 > arquivo nenhum.

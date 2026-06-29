@@ -17,7 +17,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: todolist-cleanup
-            image: curlimages/curl:8
+            image: curlimages/curl:8.21.0
             command:
               - /bin/sh
               - -c

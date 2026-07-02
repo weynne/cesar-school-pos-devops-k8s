@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: rbac
+  annotations:
+    description: "Vincula a Role pod-reader ao ServiceAccount do TodoList"
+subjects:
+- kind: ServiceAccount
+  name: todolist-serviceaccount
+  namespace: todolist-grupo-05
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io

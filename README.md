@@ -1,6 +1,6 @@
 # CESAR School · Pós DevOps · Kubernetes
 
-Repositório com os labs práticos do módulo de Orquestração de Containers com Kubernetes.
+Repositório com os laboratórios práticos do módulo de Orquestração de Containers com Kubernetes.
 
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
 ![kind](https://img.shields.io/badge/kind-000000?style=flat-square&logo=kubernetes&logoColor=white)
@@ -10,20 +10,33 @@ Repositório com os labs práticos do módulo de Orquestração de Containers co
 
 ## Sumário
 
-- [Conceitos: como o Kubernetes funciona](#conceitos-como-o-kubernetes-funciona)
+- [Como o Kubernetes funciona](#como-o-kubernetes-funciona)
 - [Pré-requisitos](#pré-requisitos)
 - [Preparando o cluster](#preparando-o-cluster)
 - [Lab 1: Workloads + Acesso + Persistência](#lab-1-workloads--acesso--persistência)
+  - [Objetos deste lab](#objetos-deste-lab)
+  - [Estrutura dos manifests](#estrutura-dos-manifests)
   - [Como subir o ambiente](#como-subir-o-ambiente)
   - [Verificação](#verificação)
   - [Troubleshooting](#troubleshooting)
   - [Indo além (opcional)](#indo-além-opcional)
   - [Acesso via navegador](#acesso-via-navegador)
-  - [Visão geral](#visão-geral-como-todos-os-recursos-se-conectam)
-- [Lab 2](#lab-2-em-breve)
+  - [Visão geral: como todos os recursos se conectam](#visão-geral-como-todos-os-recursos-se-conectam)
+- [Lab 2: Resiliência e Disponibilidade](#lab-2-resiliência-e-disponibilidade)
+  - [Objetos deste lab](#objetos-deste-lab-1)
+  - [Pré-requisitos do Lab 2](#pré-requisitos-do-lab-2)
+  - [Estrutura dos manifests](#estrutura-dos-manifests-1)
+  - [Como subir o ambiente](#como-subir-o-ambiente-1)
+  - [Verificação](#verificação-1)
+  - [Troubleshooting](#troubleshooting-1)
+  - [Indo além (opcional)](#indo-além-opcional-1)
+  - [Acesso via navegador](#acesso-via-navegador-1)
+  - [Visão geral: como todos os recursos se conectam](#visão-geral-como-todos-os-recursos-se-conectam-1)
 - [Créditos](#créditos)
 
-## Conceitos: como o Kubernetes funciona
+---
+
+## Como o Kubernetes funciona
 
 O Kubernetes é **declarativo**: descrevemos o *estado desejado* em manifests YAML.
 O cluster trabalha continuamente para alcançá-lo.
@@ -41,15 +54,13 @@ flowchart TD
     User(["💻 kubectl apply"])
 
     subgraph CP["🧠 Control Plane"]
-        direction TB
-        API["🔵 API Server"]
-        etcd[("📦 etcd")]
         Ctrl["⚙️ Controllers"]
         Sched["📅 Scheduler"]
+        API["🔵 API Server"]
+        etcd[("📦 etcd")]
     end
 
     subgraph WN["🖥️ Worker Node"]
-        direction TB
         Kubelet["🔧 Kubelet"]
         CR["🐳 Container Runtime"]
         CNI["🌐 CNI Plugin"]
@@ -80,8 +91,6 @@ flowchart TD
 > Se um Pod cair, o controller percebe a diferença entre o estado atual e o desejado.
 > Ele cria outro Pod para restaurá-lo, sem intervenção manual.
 
----
-
 **Referências oficiais:**
 
 - [Componentes do cluster: API Server, etcd, Scheduler e Kubelet][components]
@@ -91,6 +100,8 @@ flowchart TD
 [components]: https://kubernetes.io/docs/concepts/overview/components/
 [controllers-reconciliation]: https://kubernetes.io/docs/concepts/architecture/controller/
 [pods]: https://kubernetes.io/docs/concepts/workloads/pods/
+
+---
 
 ## Pré-requisitos
 
@@ -106,6 +117,8 @@ Ferramentas que precisam estar instaladas na máquina:
 
 O cluster e o Ingress Controller são criados na seção
 [Preparando o cluster](#preparando-o-cluster).
+
+---
 
 ## Preparando o cluster
 
@@ -140,26 +153,26 @@ kubectl patch deployment metrics-server -n kube-system --type='json' \
 kubectl rollout status deployment metrics-server -n kube-system --timeout=90s
 ```
 
+---
+
 ## Lab 1: Workloads + Acesso + Persistência
 
 Deploy completo do **TodoList** no cluster Kubernetes, cobrindo:
 Namespace, ConfigMap, Secret, PVC, Deployment, Service, Ingress e CronJob.
 
-### Objetos que criaremos neste lab
+### Objetos deste lab
 
 Cada objeto do Kubernetes tem um papel específico.
 Criaremos oito objetos, agrupados aqui por função:
 
 ```mermaid
-flowchart LR
-    K8s(["☸️ Objetos Lab 1"])
-
-    K8s --> Iso["📁 Isolamento<br/>Namespace"]
-    K8s --> Work["🚀 Workload<br/>Deployment → Pods"]
-    K8s --> Conf["⚙️ Configuração<br/>ConfigMap · Secret"]
-    K8s --> Stor["💾 Armazenamento<br/>PVC → PersistentVolume"]
-    K8s --> Net["🌐 Rede / Acesso<br/>Service · Ingress"]
-    K8s --> Task["⏰ Tarefas agendadas<br/>CronJob"]
+flowchart TD
+  Iso["📁 Isolamento<br/>Namespace"]
+  Work["🚀 Workload<br/>Deployment → Pods"]
+  Conf["⚙️ Configuração<br/>ConfigMap · Secret"]
+  Stor["💾 Armazenamento<br/>PVC → PersistentVolume"]
+  Net["🌐 Rede / Acesso<br/>Service · Ingress"]
+  Task["⏰ Tarefas agendadas<br/>CronJob"]
 ```
 
 **Referências oficiais:**
@@ -206,11 +219,11 @@ Siga os passos abaixo na ordem, porque cada um depende do anterior. Cada bloco
 é colapsável: clique para expandir o objeto que quiser ver.
 
 > [!TIP]
-> **Ponto de partida com `--dry-run=client`:** em cada passo, o comando
+> **Comece com `--dry-run=client`:** em cada passo, o comando
 > `kubectl create ... --dry-run=client -o yaml` **não cria nada no cluster**.
-> Ele apenas imprime um YAML de exemplo. A ideia é redirecionar para um arquivo
+> Ele apenas imprime um YAML de exemplo. A ideia é redirecionar isso para um arquivo
 > (`> lab1/arquivo.yaml`), ajustar o que faltar e só então criar o recurso com
-> `kubectl apply -f`. Assim ganhamos um esqueleto sem ferir a regra do lab,
+> `kubectl apply -f`. Assim obtemos um esqueleto sem quebrar a regra do lab,
 > já que a criação continua **declarativa**.
 >
 > O que o `dry-run` gera é o **mínimo que o Kubernetes exige**. O quanto
@@ -227,9 +240,9 @@ Siga os passos abaixo na ordem, porque cada um depende do anterior. Cada bloco
 >   ser escrito integralmente do zero.
 
 <details>
-<summary><b>1. Namespace</b> — isola todos os recursos do lab</summary>
+<summary><b>1. Namespace</b>: isola todos os recursos do lab</summary>
 
-Isola todos os recursos do lab. Todo manifest abaixo deve declarar `namespace: todolist-grupo-05`.
+Todo manifest abaixo declara `namespace: todolist-grupo-05`.
 
 ```mermaid
 flowchart LR
@@ -253,10 +266,9 @@ kubectl apply -f lab1/namespace.yaml
 </details>
 
 <details>
-<summary><b>2. ConfigMap</b> — variáveis não sensíveis (APP_NAME, APP_PORT, APP_COLOR)</summary>
+<summary><b>2. ConfigMap</b>: variáveis não sensíveis (APP_NAME, APP_PORT, APP_COLOR)</summary>
 
-Armazena variáveis não sensíveis (`APP_NAME`, `APP_PORT`, `APP_COLOR`)
-injetadas nos Pods via `envFrom`.
+Injeta as variáveis não sensíveis nos Pods via `envFrom`.
 
 ```mermaid
 flowchart LR
@@ -284,12 +296,11 @@ kubectl apply -f lab1/configmap.yaml
 </details>
 
 <details>
-<summary><b>3. Secret</b> — dados sensíveis (sessão, login, token)</summary>
+<summary><b>3. Secret</b>: dados sensíveis (sessão, login, token)</summary>
 
-Guarda `SESSION_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD` e `CLEANUP_TOKEN`.
-Funciona como o ConfigMap, mas é o objeto indicado para dados sensíveis:
-os valores ficam codificados em base64 (apenas codificação, **não** criptografia)
-e o acesso pode ser restringido via RBAC.
+Guarda `SESSION_KEY`, `ADMIN_USER`, `ADMIN_PASSWORD` e `CLEANUP_TOKEN`. É como o
+ConfigMap, mas para dados sensíveis: valores em base64 (codificação, **não**
+criptografia) e acesso restringível via RBAC.
 
 ```mermaid
 flowchart LR
@@ -321,13 +332,12 @@ kubectl apply -f lab1/secret.yaml
 </details>
 
 <details>
-<summary><b>4. PersistentVolumeClaim</b> — volume de 500Mi para o banco</summary>
+<summary><b>4. PersistentVolumeClaim</b>: volume de 500Mi para o banco</summary>
 
-Solicita um volume de `500Mi` (`ReadWriteOnce`) ao cluster.
-O Kubernetes provisiona o PersistentVolume e o vincula ao PVC.
-O Deployment monta o volume em `/data`, onde fica o banco `todos.db`.
+Solicita um volume de `500Mi` (`ReadWriteOnce`); o Kubernetes provisiona o
+PersistentVolume e o Deployment o monta em `/data` (banco `todos.db`).
 
-> 📝 **Nota:** no kind, o PVC só fica `Bound` quando um Pod o monta (passo 5). Até lá ele
+> **Nota:** no kind, o PVC só fica `Bound` quando um Pod o monta (passo 5); até lá
 > aparece como `Pending`, o que é normal. Veja [Troubleshooting](#troubleshooting).
 
 ```mermaid
@@ -343,7 +353,7 @@ flowchart LR
     PVC -->|volumeMount /data| Pods
 ```
 
-> ❗ **Importante:** não há `kubectl create pvc`, então escreva `lab1/pvc.yaml` à mão com
+> **Importante:** não há `kubectl create pvc`; escreva `lab1/pvc.yaml` à mão com
 > `kind: PersistentVolumeClaim`, `accessModes: [ReadWriteOnce]` e
 > `resources.requests.storage: 500Mi`.
 
@@ -354,21 +364,14 @@ kubectl apply -f lab1/pvc.yaml
 </details>
 
 <details>
-<summary><b>5. Deployment</b> — 2 réplicas do servidor TodoList</summary>
+<summary><b>5. Deployment</b>: 2 réplicas do servidor TodoList</summary>
 
-Garante que **2 réplicas** da imagem
-`andreffcastro/k8s-todolist:1.0.0` estejam sempre rodando.
-Cada réplica consome o ConfigMap e o Secret via `envFrom` e monta o PVC em `/data`.
+Mantém **2 réplicas** de `andreffcastro/k8s-todolist:1.0.0` sempre rodando. Cada
+réplica consome o ConfigMap e o Secret via `envFrom` e monta o PVC em `/data`.
 
-O Deployment Controller cria um ReplicaSet.
-O ReplicaSet cria e mantém os Pods até ficarem prontos:
-
-> 📝 **Nota — imutabilidade de variáveis injetadas:** valores injetados via `envFrom`
-> (ConfigMap e Secret) são lidos exclusivamente no momento da inicialização do
-> container. Alterações feitas no ConfigMap ou no Secret não são refletidas
-> automaticamente nos Pods em execução. Para aplicar novas configurações, é
-> necessário forçar a recriação dos Pods com:
-> `kubectl rollout restart deployment/todolist -n todolist-grupo-05`.
+> **Imutabilidade de variáveis injetadas:** valores de `envFrom` são lidos
+> só na inicialização do container. Para aplicar mudanças no ConfigMap/Secret,
+> recrie os Pods: `kubectl rollout restart deployment/todolist -n todolist-grupo-05`.
 
 ```mermaid
 flowchart LR
@@ -400,21 +403,15 @@ kubectl apply -f lab1/deployment.yaml
 </details>
 
 <details>
-<summary><b>6. Service</b> — expõe os Pods na porta 80 → 5000</summary>
+<summary><b>6. Service</b>: expõe os Pods na porta 80 → 5000</summary>
 
-Expõe os Pods via `ClusterIP` estável na porta `80 → 5000`.
-O `selector: app: todolist` balanceia entre as réplicas.
+Expõe os Pods via `ClusterIP` na porta `80 → 5000`; o `selector: app: todolist`
+balanceia entre as réplicas.
 
-> 📝 **Nota — Service vs Ingress (interno vs externo):** o Service fornece um endereço
-> interno e estável para um conjunto de Pods (os IPs dos Pods mudam dinamicamente;
-> o do Service é fixo). Como está definido como `ClusterIP`, ele só é acessível
-> de dentro do cluster. Quem expõe essa aplicação para o navegador é o Ingress
-> (passo 7).
->
-> **Mapeamento de portas:** `port: 80` é a porta exposta pelo Service;
-> `targetPort: 5000` é a porta onde a aplicação escuta dentro do Pod. O Service
-> recebe o tráfego na porta 80 e o encaminha para a porta 5000 dos Pods
-> selecionados.
+> **Service vs Ingress:** o Service dá um endereço interno e estável aos Pods
+> (`ClusterIP`, só acessível dentro do cluster); quem expõe ao navegador é o
+> Ingress (passo 7). No mapeamento de portas, `port: 80` é a porta do Service e
+> `targetPort: 5000` é onde a aplicação escuta no Pod.
 
 ```mermaid
 flowchart LR
@@ -441,18 +438,15 @@ kubectl apply -f lab1/service.yaml
 </details>
 
 <details>
-<summary><b>7. Ingress</b> — acesso externo via todolist-grupo-05.local</summary>
+<summary><b>7. Ingress</b>: acesso externo via todolist-grupo-05.local</summary>
 
-Recebe requisições externas em `todolist-grupo-05.local` e roteia para o Service.
-Requer o Ingress-NGINX Controller instalado.
+Recebe requisições em `todolist-grupo-05.local` e roteia para o Service. Requer o
+Ingress-NGINX Controller instalado.
 
-> ❗ **Importante — `ingressClassName`:** sem o campo `ingressClassName: nginx`,
-> o Ingress Controller ignora o manifesto e nenhum roteamento é aplicado (isso
-> ocorre porque, no kind, não existe uma classe marcada como default). Além
-> disso, o roteamento é baseado em **host**: a regra definida só responde a
-> requisições destinadas a `todolist-grupo-05.local`. Acessar por outros
-> endereços (como `localhost`) resultará em um erro `404 Not Found` do NGINX,
-> pois não haverá uma regra que corresponda ao host requisitado.
+> **Importante:** sem `ingressClassName: nginx`, o Controller ignora o
+> manifesto (no kind não há classe default). O roteamento é por **host**: a regra
+> só responde a `todolist-grupo-05.local`; outros endereços (como `localhost`)
+> retornam `404 Not Found`.
 
 ```mermaid
 flowchart LR
@@ -465,8 +459,9 @@ flowchart LR
     SVC["🔄 Service:<br/>todolist"]
 
     Apply --> API --> etcd --> Ing
-    Browser -->|HTTP| IC -->|lê as regras do| Ing
-    Ing -->|roteia para| SVC
+    Browser -->|HTTP| IC
+    IC -->|lê as regras do| Ing
+    IC -->|roteia para| SVC
 ```
 
 ```bash
@@ -482,29 +477,21 @@ kubectl apply -f lab1/ingress.yaml
 </details>
 
 <details>
-<summary><b>8. CronJob</b> — limpeza automática a cada 5 minutos</summary>
+<summary><b>8. CronJob</b>: limpeza automática a cada 5 minutos</summary>
 
-A cada 5 minutos (`*/5 * * * *`), um Job com a imagem `curlimages/curl:8.21.0`
-faz `POST /cleanup` para limpar itens concluídos do banco.
-O token vem diretamente do Secret.
+A cada 5 minutos (`*/5 * * * *`), um Job com `curlimages/curl:8.21.0` faz
+`POST /cleanup` para limpar itens concluídos. O token vem do Secret.
 
-> ⚠️ **Atenção — dois pontos na configuração do CronJob:**
+> **Três cuidados importantes no CronJob:**
 >
-> - **Expansão de variáveis de ambiente:** o valor do `$CLEANUP_TOKEN` só é
->   expandido se o comando for executado dentro de um shell. Configure o comando
->   como `command: ["/bin/sh", "-c", "curl -H 'X-Cleanup-Token: $CLEANUP_TOKEN' ..."]`.
->   Se omitir o `/bin/sh -c`, o header será enviado como o texto literal
->   `$CLEANUP_TOKEN`, causando falhas de autenticação (`401` ou `403`).
-> - **Política de reinicialização (`restartPolicy`):** Pods criados por
->   Jobs/CronJobs exigem `restartPolicy: OnFailure` ou `Never`. O valor padrão
->   (`Always`) é incompatível com o ciclo de vida de uma tarefa agendada e
->   resultará em erro ao aplicar o manifesto.
->
-> 📝 **Nota — escopo das labels:** as labels `app`/`component` ficam apenas no
-> objeto CronJob, não no Pod que ele cria. Se o Pod do `curl` tivesse
-> `app: todolist`, o Service passaria a roteá-lo como se fosse um servidor web
-> (que ele não é), enviando tráfego para um Pod que apenas executa uma tarefa e
-> encerra.
+> - **Expansão de variáveis:** `$CLEANUP_TOKEN` só expande dentro de um shell;
+>   use `command: ["/bin/sh", "-c", "..."]`. Sem o `/bin/sh -c`, o header vai
+>   literal e causa `401/403`.
+> - **`restartPolicy`:** Jobs/CronJobs exigem `OnFailure` ou `Never`; o padrão
+>   `Always` falha ao aplicar.
+> - **Escopo das labels:** mantenha `app`/`component` só no CronJob, não no Pod
+>   que ele cria. Com `app: todolist` no Pod, o Service rotearia tráfego para uma
+>   tarefa que só executa e encerra.
 
 ```mermaid
 flowchart LR
@@ -642,8 +629,6 @@ A aplicação fica acessível em: [http://todolist-grupo-05.local](http://todoli
 > (`http://todolist-grupo-05.127.0.0.1.nip.io`), que resolve sozinho sem editar
 > arquivo nenhum.
 
----
-
 ### Visão geral: como todos os recursos se conectam
 
 ```mermaid
@@ -677,7 +662,465 @@ flowchart TD
 
 ---
 
-## Lab 2: *em breve*
+## Lab 2: Resiliência e Disponibilidade
+
+Evolui o Deployment do Lab 1 para uma aplicação mais robusta: adiciona
+**observabilidade de saúde** (probes), **autoscaling** (HPA), **resiliência**
+(PDB) e **controle de acesso** (RBAC).
+
+A versão 2 do TodoList (imagem `andreffcastro/k8s-todolist:1.1.0`) traz uma tela de
+**Pods** (mostra em tempo real quais instâncias estão rodando) e uma tela de
+**Cleanup History** (logs dos jobs de limpeza). Para essas telas funcionarem, a
+aplicação precisa consultar a API do Kubernetes. É para isso que entram o
+ServiceAccount + Role + RoleBinding.
+
+### Objetos deste lab
+
+Além dos objetos do Lab 1 (que continuam valendo), o Lab 2 **cria** cinco recursos
+novos e **modifica** o Deployment:
+
+```mermaid
+flowchart TD
+  Heal["🩺 Saúde<br/>Liveness + Readiness Probe"]
+  Scale["📈 Autoscaling<br/>HorizontalPodAutoscaler"]
+  Avail["🛡️ Resiliência<br/>PodDisruptionBudget"]
+  Ident["🪪 Identidade<br/>ServiceAccount"]
+  RBAC["🔑 Permissões<br/>Role + RoleBinding"]
+```
+
+| Objeto | Papel |
+| --- | --- |
+| 🩺 **Liveness Probe** | Detecta quando o container trava e o reinicia automaticamente |
+| 🩺 **Readiness Probe** | Indica quando o Pod está pronto para receber tráfego |
+| 📈 **HPA** | Ajusta automaticamente o número de réplicas conforme a carga |
+| 🛡️ **PDB** | Garante um número mínimo de Pods disponíveis durante interrupções voluntárias |
+| 🪪 **ServiceAccount** | Identidade que o Pod usa para se autenticar na API do Kubernetes |
+| 🔑 **Role + RoleBinding** | Define e concede permissões de acesso a recursos do namespace |
+
+**Referências oficiais:**
+
+- [Liveness, Readiness e Startup Probes][probes]
+- [HorizontalPodAutoscaler][hpa]
+- [PodDisruptionBudget][pdb-ref]
+- [ServiceAccount][sa]
+- [RBAC: Role e RoleBinding][rbac]
+
+[probes]: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+[hpa]: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+[pdb-ref]: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+[sa]: https://kubernetes.io/docs/concepts/security/service-accounts/
+[rbac]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+
+### Pré-requisitos do Lab 2
+
+1. **Cluster + Ingress + metrics-server** já preparados conforme
+   [Preparando o cluster](#preparando-o-cluster). O **metrics-server é
+   obrigatório** aqui: sem ele o HPA fica com `<unknown>` em `TARGETS` e não escala.
+2. **Recursos base do Lab 1 aplicados:** o Lab 2 reaproveita o `Namespace`,
+   `ConfigMap`, `Secret`, `PVC`, `Service`, `Ingress` e o `CronJob` (este último
+   gera os jobs de limpeza que alimentam a tela **Cleanup History** da V2). Se
+   ainda não subiu o Lab 1, aplique-os antes:
+
+   ```bash
+   kubectl apply -f lab1/namespace.yaml
+   kubectl apply -f lab1/configmap.yaml
+   kubectl apply -f lab1/secret.yaml
+   kubectl apply -f lab1/pvc.yaml
+   kubectl apply -f lab1/service.yaml
+   kubectl apply -f lab1/ingress.yaml
+   kubectl apply -f lab1/cronjob.yaml
+   ```
+
+   > 📝 **Nota:** o `lab2/deployment.yaml` **substitui** o do Lab 1 (imagem
+   > `1.1.0`, probes e `serviceAccountName`). Não aplique o
+   > `lab1/deployment.yaml`.
+
+### Estrutura dos manifests
+
+```text
+lab2/
+├── serviceaccount.yaml
+├── role.yaml
+├── rolebinding.yaml
+├── deployment.yaml
+├── hpa.yaml
+└── pdb.yaml
+```
+
+### Como subir o ambiente
+
+Siga na ordem, porque cada passo depende do anterior. O ServiceAccount, a Role e o
+RoleBinding vêm **antes** do Deployment, porque o Pod já sobe apontando para o SA
+e usando as permissões concedidas. O HPA e o PDB vêm **depois** do Deployment,
+pois referenciam o workload que já precisa existir.
+
+> [!TIP]
+> **Comece com `--dry-run=client`:** em cada passo, o comando
+> `kubectl create ... --dry-run=client -o yaml` **não cria nada no cluster**.
+> Apenas imprime um YAML de esqueleto. Redirecione para o arquivo
+> (`> lab2/arquivo.yaml`), ajuste o que faltar e só então crie o recurso com
+> `kubectl apply -f`. Assim a criação continua **declarativa**.
+>
+> O quanto precisaremos editar o arquivo gerado varia de acordo com o tipo de
+> objeto:
+>
+> - 🟢 **Prontos para uso (requerem apenas revisão):** ServiceAccount e
+>   RoleBinding. O comando gera a estrutura praticamente finalizada.
+> - 🟡 **Estrutura básica (requerem customização):** Role (falta a segunda
+>   regra, `get` em `pods/log`) e HPA (o comando gera a API `v1`; migramos
+>   para `autoscaling/v2` para habilitar o `behavior`).
+> - 🔴 **Criação manual (sem comando `create`):** PodDisruptionBudget. Como o
+>   `kubectl` não possui um gerador nativo para PDBs, o manifesto precisa ser
+>   escrito integralmente do zero.
+> - 🔵 **Caso especial:** o Deployment não nasce de um `dry-run` novo. É o
+>   `lab1/deployment.yaml` editado com a imagem `1.1.0`, `serviceAccountName`
+>   e as probes.
+
+<details>
+<summary><b>1. ServiceAccount</b>: identidade do Pod perante a API</summary>
+
+Cria a identidade `todolist-serviceaccount`, referenciada pelo Deployment (passo 4)
+e alvo do RoleBinding (passo 3). Sem SA explícito, o Pod usaria o `default` do
+namespace.
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f serviceaccount.yaml"]
+    API["🔵 API Server"]
+    etcd[("📦 etcd")]
+    SA["🪪 ServiceAccount:<br/>todolist-serviceaccount"]
+
+    Apply --> API --> etcd --> SA
+```
+
+```bash
+# Ponto de partida: gera o esqueleto do manifest
+kubectl create serviceaccount todolist-serviceaccount \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab2/serviceaccount.yaml
+
+# Depois de revisar o arquivo, aplique:
+kubectl apply -f lab2/serviceaccount.yaml
+```
+
+</details>
+
+<details>
+<summary><b>2. Role</b>: o que pode ser lido (pods e logs)</summary>
+
+Define, no namespace, as ações permitidas: `get`/`list` em `pods` e `get` em
+`pods/log`, o que alimenta as telas de **Pods** e **Cleanup History**. Sozinha
+não concede nada; quem vincula é o RoleBinding (passo 3).
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f role.yaml"]
+    API["🔵 API Server"]
+    etcd[("📦 etcd")]
+    Role["🔑 Role:<br/>pod-reader<br/>get/list pods · get pods/log"]
+
+    Apply --> API --> etcd --> Role
+```
+
+```bash
+# Ponto de partida: gera a regra de get/list em pods
+kubectl create role pod-reader \
+  --verb=get,list --resource=pods \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab2/role.yaml
+
+# Edite o arquivo para adicionar a segunda regra: get em pods/log
+# (subrecurso 'pods/log' com verbo 'get'). Depois aplique:
+kubectl apply -f lab2/role.yaml
+```
+
+</details>
+
+<details>
+<summary><b>3. RoleBinding</b>: concede a Role ao ServiceAccount</summary>
+
+Vincula a Role `pod-reader` ao ServiceAccount `todolist-serviceaccount`. É aqui
+que as permissões passam a valer: qualquer Pod com esse SA pode ler pods e logs no
+namespace.
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f rolebinding.yaml"]
+    API["🔵 API Server"]
+    etcd[("📦 etcd")]
+    RB["🔗 RoleBinding:<br/>pod-reader-binding"]
+    Role["🔑 Role:<br/>pod-reader"]
+    SA["🪪 ServiceAccount:<br/>todolist-serviceaccount"]
+
+    Apply --> API --> etcd --> RB
+    RB -->|roleRef| Role
+    RB -->|subject| SA
+```
+
+```bash
+# Ponto de partida: já liga a Role ao SA no formato correto
+kubectl create rolebinding pod-reader-binding \
+  --role=pod-reader \
+  --serviceaccount=todolist-grupo-05:todolist-serviceaccount \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab2/rolebinding.yaml
+
+# Depois de revisar o arquivo, aplique:
+kubectl apply -f lab2/rolebinding.yaml
+```
+
+</details>
+
+<details>
+<summary><b>4. Deployment</b>: Lab 1 + probes + SA</summary>
+
+O Deployment do Lab 1 evoluído. As mudanças em relação ao Lab 1:
+
+- **Imagem** atualizada para `andreffcastro/k8s-todolist:1.1.0` (expõe `GET /healthz`).
+- **`serviceAccountName: todolist-serviceaccount`** para o Pod usar a identidade do passo 1.
+- **Liveness Probe:** `httpGet /healthz:5000`, `initialDelaySeconds: 10`,
+  `periodSeconds: 10`. Se o container travar, o kubelet o reinicia.
+- **Readiness Probe:** `httpGet /healthz:5000`, `initialDelaySeconds: 5`,
+  `periodSeconds: 10`. O Service só roteia tráfego quando o Pod passa na probe.
+
+> **Nota:** *liveness* e *readiness* cumprem papéis diferentes. A *liveness* reinicia o container se ele travar, enquanto a *readiness* tira o Pod do balanceamento enquanto ele ainda não está pronto.
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f deployment.yaml"]
+    API["🔵 API Server"]
+    DC["🎛️ Deployment Controller"]
+    RS["🔁 ReplicaSet"]
+    Pods["✅ Pods (v1.1.0)"]
+    SA["🪪 ServiceAccount"]
+    Kubelet["🔧 Kubelet"]
+
+    Apply --> API --> DC --> RS --> Pods
+    SA -.->|serviceAccountName| Pods
+    Kubelet -->|liveness /healthz| Pods
+    Kubelet -->|readiness /healthz| Pods
+```
+
+```bash
+# O deployment.yaml do Lab 2 é uma versão do Lab 1 adaptada. Parta do arquivo existente
+# (lab1/deployment.yaml) e adicione: imagem 1.1.0, serviceAccountName,
+# livenessProbe e readinessProbe. O resources.requests.cpu já vem do Lab 1,
+# e é ele que o HPA usa como base de cálculo. Depois aplique:
+kubectl apply -f lab2/deployment.yaml
+```
+
+</details>
+
+<details>
+<summary><b>5. HorizontalPodAutoscaler</b>: escala de 1 a 4 por CPU</summary>
+
+Observa a CPU dos Pods (via metrics-server) e ajusta as réplicas entre `1` e `4`,
+mirando **50%** de uso médio. O cálculo é relativo ao `requests.cpu` do Deployment.
+
+> **Nota:** `averageUtilization` no `autoscaling/v2` é o equivalente moderno de
+> `targetCPUUtilizationPercentage: 50` na API `v1`. A `v2` também habilita as
+> políticas de `behavior` do arquivo.
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f hpa.yaml"]
+    MS["📊 metrics-server"]
+    HPA["📈 HPA:<br/>todolist-hpa<br/>1→4 @ 50% CPU"]
+    Deploy["🚀 Deployment:<br/>todolist"]
+    Pods["✅ Pods"]
+
+    MS -->|uso de CPU| HPA
+    Apply --> HPA
+    HPA -->|ajusta réplicas| Deploy --> Pods
+```
+
+```bash
+# Ponto de partida: gera o HPA com min/max e alvo de CPU
+kubectl autoscale deployment todolist \
+  --min=1 --max=4 --cpu-percent=50 \
+  -n todolist-grupo-05 --dry-run=client -o yaml > lab2/hpa.yaml
+
+# (Opcional) migre para apiVersion autoscaling/v2 e ajuste o behavior.
+# Depois aplique:
+kubectl apply -f lab2/hpa.yaml
+```
+
+</details>
+
+<details>
+<summary><b>6. PodDisruptionBudget</b>: mantém ≥1 Pod disponível</summary>
+
+Protege a app em **interrupções voluntárias** (drain, upgrade): com
+`minAvailable: 1`, o cluster nunca remove o último Pod saudável. O
+`selector: app: todolist` precisa casar com os Pods do Deployment.
+
+> **Nota:** o PDB atua apenas em disrupções voluntárias, como `kubectl drain`, e não
+> em falhas involuntárias, como crash ou OOM. Nesses casos, réplicas e probes são
+> a defesa principal.
+
+```mermaid
+flowchart LR
+    Apply["💻 kubectl apply<br/>-f pdb.yaml"]
+    API["🔵 API Server"]
+    etcd[("📦 etcd")]
+    PDB["🛡️ PDB:<br/>todolist-pdb<br/>minAvailable: 1"]
+    Pods["✅ Pods (app: todolist)"]
+
+    Apply --> API --> etcd --> PDB
+    PDB -.->|selector app=todolist| Pods
+```
+
+> **Importante:** não há `kubectl create pdb`; escreva `lab2/pdb.yaml` à mão com
+> `kind: PodDisruptionBudget`, `spec.minAvailable: 1` e
+> `spec.selector.matchLabels.app: todolist`.
+
+```bash
+kubectl apply -f lab2/pdb.yaml
+```
+
+</details>
+
+### Verificação
+
+```bash
+# Visão geral dos recursos do lab
+kubectl get deployment,hpa,pdb,sa,role,rolebinding -n todolist-grupo-05
+
+# Acompanhar os Pods ficarem Ready (probes passando)
+kubectl get pods -n todolist-grupo-05 -w
+
+# Estado das probes / eventos do Pod
+kubectl describe pod <POD_NAME> -n todolist-grupo-05
+
+# HPA deve mostrar TARGETS com um valor de CPU (não <unknown>)
+kubectl get hpa todolist-hpa -n todolist-grupo-05
+```
+
+Confirmar as permissões RBAC do ServiceAccount:
+
+```bash
+# Deve responder: yes
+kubectl auth can-i get pods \
+  --as=system:serviceaccount:todolist-grupo-05:todolist-serviceaccount \
+  -n todolist-grupo-05
+
+# Deve responder: no (só concedemos leitura, não delete)
+kubectl auth can-i delete pods \
+  --as=system:serviceaccount:todolist-grupo-05:todolist-serviceaccount \
+  -n todolist-grupo-05
+```
+
+### Troubleshooting
+
+Problemas específicos deste lab:
+
+- 🟡 **HPA com `<unknown>` em `TARGETS`:**
+  - **Causa:** o metrics-server não está pronto ou o Deployment não tem
+    `resources.requests.cpu` (o HPA calcula o uso relativo a ele).
+  - **Solução:** confirme o metrics-server com
+    `kubectl top pods -n todolist-grupo-05` e o `requests.cpu` no Deployment. Veja
+    [Preparando o cluster](#preparando-o-cluster).
+
+- 🔴 **Pod não fica `Ready` ou reinicia em loop (probes):**
+  - **Causa:** a probe HTTP em `/healthz:5000` está falhando: a app ainda pode
+    estar subindo, a porta pode estar errada, ou o `initialDelaySeconds` está
+    curto demais para o boot.
+  - **Solução:** rode `kubectl describe pod <POD_NAME> -n todolist-grupo-05` e veja
+    os eventos das probes. A *readiness* mantém o Pod fora do Service; a *liveness*
+    reinicia o container. Aumente o `initialDelaySeconds` se o boot for lento.
+
+- 🔴 **`kubectl auth can-i get pods` responde `no`:**
+  - **Causa:** a Role/RoleBinding não está vinculada ao ServiceAccount correto
+    (nome do SA, namespace ou `roleRef` divergentes).
+  - **Solução:** confira que o RoleBinding aponta para a Role `pod-reader` e o
+    `todolist-serviceaccount`, e que o Deployment usa `serviceAccountName`. As telas
+    **Pods** e **Cleanup History** dependem disso.
+
+### Indo além (opcional)
+
+Tópicos fora do escopo deste lab, mas úteis quando for para um ambiente real:
+
+- **Role vs ClusterRole:** a Role deste lab só vale no namespace
+  `todolist-grupo-05`. Para conceder acesso em todos os namespaces (comum em
+  operadores e controllers), use
+  [ClusterRole](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+  e `ClusterRoleBinding` em vez de Role e RoleBinding.
+
+- **HPA por métricas customizadas:** este lab escala por CPU, a métrica mais
+  simples, disponível via metrics-server. Em produção é comum escalar por
+  métricas de aplicação (fila de mensagens, requisições por segundo) com o
+  [Prometheus Adapter](https://github.com/kubernetes-sigs/prometheus-adapter)
+  ou o [KEDA](https://keda.sh/).
+
+- **PDB por percentual:** este lab usa `minAvailable: 1` (número absoluto).
+  Para Deployments com muitas réplicas, `minAvailable: 50%` ou
+  `maxUnavailable: 1` costumam acompanhar melhor o tamanho do workload.
+
+### Acesso via navegador
+
+O acesso é o mesmo do Lab 1: o `Service` e o `Ingress` são reaproveitados. Se a
+entrada ainda não foi adicionada ao `/etc/hosts`, veja
+[Acesso via navegador](#acesso-via-navegador) do Lab 1:
+
+```text
+127.0.0.1 todolist-grupo-05.local
+```
+
+A aplicação fica em [http://todolist-grupo-05.local](http://todolist-grupo-05.local).
+Na V2, confira as novas telas **Pods** (instâncias rodando em tempo real) e
+**Cleanup History** (logs dos jobs de limpeza), que dependem do RBAC configurado
+neste lab.
+
+### Visão geral: como todos os recursos se conectam
+
+```mermaid
+flowchart TD
+    Browser(["🖥️ Navegador"])
+    Hosts["📄 /etc/hosts"]
+    IC["🔀 Ingress-NGINX Controller<br/><i>ns: ingress-nginx</i>"]
+    MS["📊 metrics-server<br/><i>ns: kube-system</i>"]
+
+    subgraph NS["Namespace: todolist-grupo-05"]
+        Ing["🌐 Ingress:<br/>todolist-ingress"]
+        SVC["🔄 Service:<br/>todolist"]
+        Deploy["🚀 Deployment:<br/>todolist v1.1.0"]
+        Pods["✅ Pods (1→4)"]
+        CM["⚙️ ConfigMap:<br/>todolist-config"]
+        Sec["🔐 Secret:<br/>todolist-secret"]
+        PVC["💾 PVC:<br/>todolist-pvc"]
+        Cron["⏰ CronJob:<br/>todolist-cleanup"]
+        HPA["📈 HPA:<br/>todolist-hpa"]
+        PDB["🛡️ PDB:<br/>todolist-pdb"]
+        SA["🪪 ServiceAccount"]
+        Role["🔑 Role:<br/>pod-reader"]
+        RB["🔗 RoleBinding"]
+    end
+
+    API2["🔵 API Server"]
+
+    Browser --> Hosts --> IC
+    IC -->|lê as regras do| Ing
+    IC -->|roteia para| SVC
+    SVC -->|balanceia + readiness| Pods
+    Deploy -->|gerencia e mantém| Pods
+    CM -->|envFrom| Pods
+    Sec -->|envFrom| Pods
+    PVC -->|volumeMount /data| Pods
+    Sec -->|secretKeyRef| Cron
+    Cron -->|POST /cleanup| SVC
+    HPA -->|ajusta réplicas| Deploy
+    MS -->|uso de CPU| HPA
+    PDB -.->|protege| Pods
+    SA -.->|serviceAccountName| Pods
+    RB -->|roleRef| Role
+    RB -->|subject| SA
+    Pods -->|consulta pods/logs| API2
+```
+
+> [!NOTE]
+> **Por que o API Server aparece aqui e não no Lab 1:** no Lab 2 a aplicação passa
+> a **consultar a própria API do Kubernetes** para exibir as telas de *Pods* e
+> *Cleanup History*. Essa é a única interação nova com o plano de controle, e ela é
+> habilitada pelo `ServiceAccount` (identidade) e pelo `Role` + `RoleBinding`
+> (permissão de `get`/`list` em pods e `get` em `pods/log`). No Lab 1, a aplicação
+> só servia HTTP, por isso ele não aparecia no diagrama.
 
 ---
 

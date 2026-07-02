@@ -1,0 +1,15 @@
+apiVersion: policy/v1  
+kind: PodDisruptionBudget 
+metadata:
+  name: todolist-pdb
+  namespace: todolist-grupo-05
+  labels:
+    app: todolist
+    component: availability
+  annotations:
+    description: "Garante ao menos 1 pod do TodoList durante interrupções voluntárias"
+spec:
+  minAvailable: 1  
+  selector: 
+    matchLabels:  
+      app: todolist
